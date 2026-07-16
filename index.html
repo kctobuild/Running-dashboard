@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<style>
+  :root{--bg:#0e1117;--panel:#161b24;--panel2:#1c2330;--line:#283142;--txt:#e8edf4;--muted:#8b96a8;--accent:#4dd0a7}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:18px;font-weight:600}
+  .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:14px 0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .kpi .v{font-size:20px;font-weight:700}
+  .kpi .l{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .x{font-size:11px;color:var(--accent);margin-top:3px}
+  .main{display:grid;grid-template-columns:1fr 264px;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .chead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+  .chead .t{font-size:13px;font-weight:600}
+  .tabs{display:flex;gap:6px}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:5px 11px;font-size:11px;cursor:pointer}
+  .tab.on{color:#0e1117;background:var(--accent);border-color:var(--accent);font-weight:700}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer}
+  .btn:hover{color:var(--txt)}
+  #wrapChart{position:relative;height:440px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px;align-items:center;min-height:18px}
+  .lg{display:flex;align-items:center;gap:5px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .desc{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .side .ph{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .side .pt{font-size:15px;font-weight:700;margin-bottom:2px}
+  .side .pd{font-size:11px;color:var(--muted);margin-bottom:12px}
+  .prow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}
+  .prow .k{color:var(--muted)}
+  .prow .v{font-weight:600}
+  .badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;margin-top:10px}
+  .hint{color:var(--muted);font-size:11px;margin-top:12px;line-height:1.5}
+  #tt{position:absolute;pointer-events:none;background:rgba(20,25,34,.97);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:11.5px;min-width:170px;opacity:0;transition:opacity .08s;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  #tt .tth{font-weight:700;font-size:12.5px;margin-bottom:2px}
+  #tt .ttd{color:var(--muted);font-size:10.5px;margin-bottom:6px}
+  #tt .r{display:flex;justify-content:space-between;gap:14px;padding:1px 0}
+  #tt .r .k{color:var(--muted)}
+  .perfhead{margin:18px 0 8px;font-size:13px;font-weight:700;color:var(--txt)}
+  .perfhead span{font-weight:400;color:var(--muted);font-size:11px}
+  .perf{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .pcard{position:relative;background:linear-gradient(160deg,#1c2432,#151b24);border:1px solid var(--line);border-top:3px solid var(--line);border-radius:12px;padding:13px 12px 12px;cursor:pointer;transition:.15s}
+  .pcard:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+  .pcard.sel{box-shadow:0 0 0 2px var(--accent)}
+  .pcard.r1{border-top-color:#f5c451} .pcard.r2{border-top-color:#c9d1d9} .pcard.r3{border-top-color:#cd8b45}
+  .pcard.r4{border-top-color:#4dd0a7} .pcard.r5{border-top-color:#4d9dff}
+  .pcard .medal{position:absolute;top:8px;right:9px;font-size:19px;line-height:1}
+  .pcard .cat{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700;padding-right:22px}
+  .pcard .big{font-size:18px;font-weight:800;margin:5px 0 2px}
+  .pcard .meta{font-size:11px;color:var(--muted);line-height:1.4}
+  .pcard .why{font-size:10.5px;color:#c3ccda;margin-top:7px;line-height:1.4;border-top:1px solid var(--line);padding-top:7px}
+  .analysis{margin-top:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .abox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .abox h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:6px}
+  .abox .stat{font-size:23px;font-weight:800;line-height:1;margin:2px 0 9px;color:var(--txt)}
+  .abox .stat small{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:4px;text-transform:none;letter-spacing:0}
+  .abox.warn .stat{color:#f5a623} .abox.hyrox .stat{color:#4d9dff}
+  .abox.warn h3{color:#f5a623}
+  .abox.hyrox{border-color:#4d9dff55;background:linear-gradient(160deg,#141d2c,#161b24)}
+  .abox.hyrox h3{color:#4d9dff}
+  .abox.hyrox li:before{background:#4d9dff}
+  .abox ul{list-style:none}
+  .abox li{font-size:12px;padding:4px 0 4px 14px;position:relative;color:#d6deea;line-height:1.45}
+  .abox li:before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .abox.warn li:before{background:#f5a623}
+  /* filters */
+  .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:2px 0 14px}
+  .filters label{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .filters select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer}
+  .filters .fcount{font-size:11px;color:var(--accent)}
+  .filters .fclear{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer}
+  .filters .fclear:hover{color:var(--txt)}
+  /* medal cards for Top Performance */
+  .pcard .medal{position:absolute;top:9px;right:11px;font-size:16px}
+  .pcard .rk{font-size:10px;color:var(--muted);font-weight:700}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(3,1fr)}.main,.analysis{grid-template-columns:1fr}.perf{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Running Performance Dashboard</h1>
+  <div class="sub" id="sub"></div>
+
+  <div class="filters">
+    <label>Period <select id="fMonth"></select></label>
+    <label>Type <select id="fType">
+      <option value="all">All runs</option>
+      <option value="Running">Outdoor</option>
+      <option value="tm">Treadmill</option>
+    </select></label>
+    <span class="fcount" id="fCount"></span>
+    <button class="fclear" id="fClear">Clear</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="main">
+    <div class="card">
+      <div class="chead">
+        <div class="tabs">
+          <button class="tab on" data-v="bubble">Distance vs Pace</button>
+          <button class="tab" data-v="trend">Pace &amp; HR Trend</button>
+          <button class="tab" data-v="eff">Aerobic Efficiency</button>
+          <button class="tab" data-v="load">Weekly Load</button>
+        </div>
+        <button class="btn" id="reset">Reset zoom</button>
+      </div>
+      <div id="wrapChart"><canvas id="c"></canvas><div id="tt"></div></div>
+      <div class="legend" id="legend"></div>
+      <div class="desc" id="cdesc"></div>
+    </div>
+
+    <div class="card side">
+      <div class="ph">Hovered run</div>
+      <div class="pt" id="sTitle">Hover a point</div>
+      <div class="pd" id="sDate">move over the chart &rarr;</div>
+      <div id="sRows"></div>
+      <div id="sBadge"></div>
+      <div class="hint">Drag to pan &middot; scroll/pinch to zoom &middot; hover snaps to the nearest run.</div>
+    </div>
+  </div>
+
+  <div class="perfhead">Top Performance <span>· click a card to spotlight the run on the chart</span></div>
+  <div class="perf" id="perf"></div>
+
+  <div class="analysis" id="analysis"></div>
+</div>
+
+<script>
+const DATA = {"runs": [{"dt": "2025-10-02 18:35:13", "date": "2025-10-02", "title": "Evening Run", "type": "Running", "dist": 4.01, "hr": 155.0, "maxhr": 172.0, "cad": 158.0, "pace": 410, "paceStr": "6:50", "temp": 33.0, "asc": 12.0, "te": 3.7, "ef": 0.944, "rPace": 410.0, "rHR": 155.0, "rEF": 0.94, "rCad": 158.0, "rTemp": 33.0, "hrResid": -0.3, "hrVsSim": 0.4, "score": 1.1}, {"dt": "2025-10-06 12:08:17", "date": "2025-10-06", "title": "Lunch Run", "type": "Running", "dist": 5.04, "hr": 156.0, "maxhr": 178.0, "cad": 160.0, "pace": 406, "paceStr": "6:46", "temp": 33.0, "asc": 18.0, "te": 3.8, "ef": 0.947, "rPace": 408.0, "rHR": 155.5, "rEF": 0.95, "rCad": 159.0, "rTemp": 33.0, "hrResid": 0.5, "hrVsSim": 0.2, "score": 0.86}, {"dt": "2025-10-10 07:23:58", "date": "2025-10-10", "title": "Kowloon Running", "type": "Running", "dist": 5.02, "hr": 154.0, "maxhr": 175.0, "cad": 161.0, "pace": 400, "paceStr": "6:40", "temp": 32.0, "asc": 12.0, "te": 3.7, "ef": 0.974, "rPace": 405.33, "rHR": 155.0, "rEF": 0.96, "rCad": 159.67, "rTemp": 32.67, "hrResid": -1.8, "hrVsSim": -1.1, "score": 0.84}, {"dt": "2025-10-12 17:12:33", "date": "2025-10-12", "title": "Kowloon Running", "type": "Running", "dist": 5.24, "hr": 160.0, "maxhr": 178.0, "cad": 153.0, "pace": 395, "paceStr": "6:35", "temp": 32.0, "asc": 19.0, "te": 3.8, "ef": 0.949, "rPace": 402.75, "rHR": 156.25, "rEF": 0.95, "rCad": 158.0, "rTemp": 32.5, "hrResid": 4.0, "hrVsSim": 4.6, "score": 2.47}, {"dt": "2025-10-15 07:22:41", "date": "2025-10-15", "title": "Kowloon Running", "type": "Running", "dist": 5.03, "hr": 154.0, "maxhr": 173.0, "cad": 161.0, "pace": 404, "paceStr": "6:44", "temp": 32.0, "asc": 8.0, "te": 3.6, "ef": 0.964, "rPace": 403.0, "rHR": 155.8, "rEF": 0.96, "rCad": 158.6, "rTemp": 32.4, "hrResid": -1.6, "hrVsSim": -1.1, "score": 0.81}, {"dt": "2025-10-18 14:29:05", "date": "2025-10-18", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.6, "hr": 153.0, "maxhr": 167.0, "cad": 158.0, "pace": 423, "paceStr": "7:03", "temp": 30.0, "asc": null, "te": 3.8, "ef": 0.927, "rPace": 405.6, "rHR": 155.4, "rEF": 0.95, "rCad": 158.6, "rTemp": 31.8, "hrResid": -1.7, "hrVsSim": -2.5, "score": 0.98}, {"dt": "2025-10-20 12:09:28", "date": "2025-10-20", "title": "Kowloon Running", "type": "Running", "dist": 5.21, "hr": 160.0, "maxhr": 173.0, "cad": 156.0, "pace": 389, "paceStr": "6:29", "temp": 35.0, "asc": 22.0, "te": 3.8, "ef": 0.964, "rPace": 402.2, "rHR": 156.2, "rEF": 0.96, "rCad": 157.8, "rTemp": 32.2, "hrResid": 3.7, "hrVsSim": 4.6, "score": 2.56}, {"dt": "2025-10-21 20:12:19", "date": "2025-10-21", "title": "Kowloon Running", "type": "Running", "dist": 3.31, "hr": 162.0, "maxhr": 179.0, "cad": 136.0, "pace": 471, "paceStr": "7:51", "temp": 26.0, "asc": 25.0, "te": 3.5, "ef": 0.786, "rPace": 416.4, "rHR": 157.8, "rEF": 0.92, "rCad": 152.8, "rTemp": 31.0, "hrResid": 9.6, "hrVsSim": 10.3, "score": 5.46}, {"dt": "2025-10-22 12:20:57", "date": "2025-10-22", "title": "Kowloon Running", "type": "Running", "dist": 5.51, "hr": 159.0, "maxhr": 175.0, "cad": 168.0, "pace": 379, "paceStr": "6:19", "temp": 27.0, "asc": 26.0, "te": 3.9, "ef": 0.996, "rPace": 413.2, "rHR": 157.6, "rEF": 0.93, "rCad": 155.8, "rTemp": 30.0, "hrResid": 2.2, "hrVsSim": 3.4, "score": 0.61}, {"dt": "2025-10-24 09:55:55", "date": "2025-10-24", "title": "Kowloon Running", "type": "Running", "dist": 8.73, "hr": 155.0, "maxhr": 174.0, "cad": 167.0, "pace": 413, "paceStr": "6:53", "temp": 32.0, "asc": 38.0, "te": 4.1, "ef": 0.937, "rPace": 415.0, "rHR": 157.8, "rEF": 0.92, "rCad": 157.0, "rTemp": 30.0, "hrResid": -0.1, "hrVsSim": 1.0, "score": 0.37}, {"dt": "2025-10-27 12:17:25", "date": "2025-10-27", "title": "Kowloon Running", "type": "Running", "dist": 6.02, "hr": 147.0, "maxhr": 166.0, "cad": 169.0, "pace": 413, "paceStr": "6:53", "temp": 32.0, "asc": 22.0, "te": 3.4, "ef": 0.988, "rPace": 413.0, "rHR": 156.6, "rEF": 0.93, "rCad": 159.2, "rTemp": 30.4, "hrResid": -8.1, "hrVsSim": -8.4, "score": 2.26}, {"dt": "2025-10-29 18:39:30", "date": "2025-10-29", "title": "Kowloon Running", "type": "Running", "dist": 6.03, "hr": 155.0, "maxhr": 173.0, "cad": 167.0, "pace": 409, "paceStr": "6:49", "temp": 31.0, "asc": 20.0, "te": 3.6, "ef": 0.946, "rPace": 417.0, "rHR": 155.6, "rEF": 0.93, "rCad": 161.4, "rTemp": 29.6, "hrResid": -0.3, "hrVsSim": -0.4, "score": 0.22}, {"dt": "2025-10-30 12:10:31", "date": "2025-10-30", "title": "Kowloon Running", "type": "Running", "dist": 5.02, "hr": 151.0, "maxhr": 169.0, "cad": 162.0, "pace": 406, "paceStr": "6:46", "temp": 31.0, "asc": 22.0, "te": 3.4, "ef": 0.979, "rPace": 404.0, "rHR": 153.4, "rEF": 0.97, "rCad": 166.6, "rTemp": 30.6, "hrResid": -4.5, "hrVsSim": -4.1, "score": 1.2}, {"dt": "2025-11-03 12:13:30", "date": "2025-11-03", "title": "Kowloon Running", "type": "Running", "dist": 6.1, "hr": 151.0, "maxhr": 170.0, "cad": 169.0, "pace": 398, "paceStr": "6:38", "temp": 30.0, "asc": 22.0, "te": 3.6, "ef": 0.998, "rPace": 407.8, "rHR": 151.8, "rEF": 0.97, "rCad": 166.8, "rTemp": 31.2, "hrResid": -4.9, "hrVsSim": -4.3, "score": 1.13}, {"dt": "2025-11-05 12:06:56", "date": "2025-11-05", "title": "Kowloon Running", "type": "Running", "dist": 6.1, "hr": 156.0, "maxhr": 176.0, "cad": 166.0, "pace": 400, "paceStr": "6:40", "temp": 34.0, "asc": 28.0, "te": 3.7, "ef": 0.962, "rPace": 405.2, "rHR": 152.0, "rEF": 0.97, "rCad": 166.6, "rTemp": 31.6, "hrResid": 0.2, "hrVsSim": 0.8, "score": 0.74}, {"dt": "2025-11-12 12:17:17", "date": "2025-11-12", "title": "Kowloon Running", "type": "Running", "dist": 6.04, "hr": 160.0, "maxhr": 181.0, "cad": 162.0, "pace": 409, "paceStr": "6:49", "temp": 34.0, "asc": 26.0, "te": 3.8, "ef": 0.917, "rPace": 404.4, "rHR": 154.6, "rEF": 0.96, "rCad": 165.2, "rTemp": 32.0, "hrResid": 4.7, "hrVsSim": 4.6, "score": 1.77}, {"dt": "2025-11-15 09:36:16", "date": "2025-11-15", "title": "Kowloon Running", "type": "Running", "dist": 7.06, "hr": 156.0, "maxhr": 175.0, "cad": 161.0, "pace": 430, "paceStr": "7:10", "temp": 31.0, "asc": 61.0, "te": 3.7, "ef": 0.894, "rPace": 408.6, "rHR": 154.8, "rEF": 0.95, "rCad": 164.0, "rTemp": 32.0, "hrResid": 1.7, "hrVsSim": 1.1, "score": 0.57}, {"dt": "2025-11-17 12:08:10", "date": "2025-11-17", "title": "Kowloon Running", "type": "Running", "dist": 5.16, "hr": 160.0, "maxhr": 182.0, "cad": 165.0, "pace": 414, "paceStr": "6:54", "temp": 34.0, "asc": 23.0, "te": 3.6, "ef": 0.906, "rPace": 410.2, "rHR": 156.6, "rEF": 0.94, "rCad": 164.6, "rTemp": 32.6, "hrResid": 4.9, "hrVsSim": 4.5, "score": 1.8}, {"dt": "2025-11-19 12:12:02", "date": "2025-11-19", "title": "Kowloon Running", "type": "Running", "dist": 7.02, "hr": 162.0, "maxhr": 178.0, "cad": 170.0, "pace": 390, "paceStr": "6:30", "temp": 25.0, "asc": 30.0, "te": 4.4, "ef": 0.95, "rPace": 408.6, "rHR": 158.8, "rEF": 0.93, "rCad": 164.8, "rTemp": 31.6, "hrResid": 5.8, "hrVsSim": 6.2, "score": 1.42}, {"dt": "2025-11-20 19:15:59", "date": "2025-11-20", "title": "Kowloon Running", "type": "Running", "dist": 5.22, "hr": 153.0, "maxhr": 170.0, "cad": 165.0, "pace": 408, "paceStr": "6:48", "temp": 25.0, "asc": 19.0, "te": 3.4, "ef": 0.961, "rPace": 410.2, "rHR": 158.2, "rEF": 0.93, "rCad": 164.6, "rTemp": 29.8, "hrResid": -2.4, "hrVsSim": -2.5, "score": 0.58}, {"dt": "2025-11-22 10:07:38", "date": "2025-11-22", "title": "Kowloon Running", "type": "Running", "dist": 8.2, "hr": 157.0, "maxhr": 175.0, "cad": 164.0, "pace": 404, "paceStr": "6:44", "temp": 32.0, "asc": 40.0, "te": 4.1, "ef": 0.946, "rPace": 409.2, "rHR": 157.6, "rEF": 0.93, "rCad": 165.0, "rTemp": 29.4, "hrResid": 1.4, "hrVsSim": 1.6, "score": 0.65}, {"dt": "2025-11-24 12:08:26", "date": "2025-11-24", "title": "Kowloon Running", "type": "Running", "dist": 6.16, "hr": 154.0, "maxhr": 175.0, "cad": 166.0, "pace": 413, "paceStr": "6:53", "temp": 33.0, "asc": 15.0, "te": 3.7, "ef": 0.943, "rPace": 405.8, "rHR": 157.2, "rEF": 0.94, "rCad": 166.0, "rTemp": 29.8, "hrResid": -1.1, "hrVsSim": -1.4, "score": 0.78}, {"dt": "2025-11-26 12:13:04", "date": "2025-11-26", "title": "Kowloon Running", "type": "Running", "dist": 6.22, "hr": 152.0, "maxhr": 174.0, "cad": 168.0, "pace": 402, "paceStr": "6:42", "temp": 34.0, "asc": 12.0, "te": 3.7, "ef": 0.982, "rPace": 403.4, "rHR": 155.6, "rEF": 0.96, "rCad": 166.6, "rTemp": 29.8, "hrResid": -3.7, "hrVsSim": -3.3, "score": 1.53}, {"dt": "2025-11-28 07:11:43", "date": "2025-11-28", "title": "Kowloon Running", "type": "Running", "dist": 5.21, "hr": 149.0, "maxhr": 171.0, "cad": 173.0, "pace": 405, "paceStr": "6:45", "temp": 24.0, "asc": 9.0, "te": 3.4, "ef": 0.994, "rPace": 406.4, "rHR": 153.0, "rEF": 0.97, "rCad": 167.2, "rTemp": 29.6, "hrResid": -6.5, "hrVsSim": -6.6, "score": 1.54}, {"dt": "2025-11-30 08:57:56", "date": "2025-11-30", "title": "Kowloon Running", "type": "Running", "dist": 6.21, "hr": 147.0, "maxhr": 167.0, "cad": 164.0, "pace": 411, "paceStr": "6:51", "temp": 28.0, "asc": 18.0, "te": 3.5, "ef": 0.993, "rPace": 407.0, "rHR": 151.8, "rEF": 0.97, "rCad": 167.0, "rTemp": 30.2, "hrResid": -8.2, "hrVsSim": -8.4, "score": 1.96}, {"dt": "2025-12-03 18:15:54", "date": "2025-12-03", "title": "Kowloon Running", "type": "Running", "dist": 6.03, "hr": 159.0, "maxhr": 174.0, "cad": 161.0, "pace": 407, "paceStr": "6:47", "temp": 27.0, "asc": 19.0, "te": 3.7, "ef": 0.927, "rPace": 407.6, "rHR": 152.2, "rEF": 0.97, "rCad": 166.4, "rTemp": 29.2, "hrResid": 3.6, "hrVsSim": 3.6, "score": 0.97}, {"dt": "2025-12-07 09:12:05", "date": "2025-12-07", "title": "Kowloon Running", "type": "Running", "dist": 7.02, "hr": 155.0, "maxhr": 171.0, "cad": 165.0, "pace": 411, "paceStr": "6:51", "temp": 30.0, "asc": 14.0, "te": 3.8, "ef": 0.942, "rPace": 407.2, "rHR": 152.4, "rEF": 0.97, "rCad": 166.2, "rTemp": 28.6, "hrResid": -0.2, "hrVsSim": -0.9, "score": 0.07}, {"dt": "2025-12-10 12:09:38", "date": "2025-12-10", "title": "Kowloon Running", "type": "Running", "dist": 6.1, "hr": 160.0, "maxhr": 181.0, "cad": 166.0, "pace": 398, "paceStr": "6:38", "temp": 27.0, "asc": 18.0, "te": 3.9, "ef": 0.942, "rPace": 406.4, "rHR": 154.0, "rEF": 0.96, "rCad": 165.8, "rTemp": 27.2, "hrResid": 4.1, "hrVsSim": 4.8, "score": 1.0}, {"dt": "2025-12-11 18:45:08", "date": "2025-12-11", "title": "Kowloon Running", "type": "Running", "dist": 6.02, "hr": 158.0, "maxhr": 176.0, "cad": 157.0, "pace": 407, "paceStr": "6:47", "temp": 27.0, "asc": 15.0, "te": 3.8, "ef": 0.933, "rPace": 406.8, "rHR": 155.8, "rEF": 0.95, "rCad": 162.6, "rTemp": 27.8, "hrResid": 2.6, "hrVsSim": 2.7, "score": 1.26}, {"dt": "2025-12-14 09:54:59", "date": "2025-12-14", "title": "Kowloon Running", "type": "Running", "dist": 7.01, "hr": 153.0, "maxhr": 171.0, "cad": 166.0, "pace": 406, "paceStr": "6:46", "temp": 27.0, "asc": 18.0, "te": 3.6, "ef": 0.966, "rPace": 405.8, "rHR": 157.0, "rEF": 0.94, "rCad": 163.0, "rTemp": 27.6, "hrResid": -2.5, "hrVsSim": -2.9, "score": 0.59}, {"dt": "2025-12-17 20:42:10", "date": "2025-12-17", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.17, "hr": 154.0, "maxhr": 174.0, "cad": 159.0, "pace": 394, "paceStr": "6:34", "temp": 31.0, "asc": null, "te": 3.8, "ef": 0.989, "rPace": 403.2, "rHR": 156.0, "rEF": 0.95, "rCad": 162.6, "rTemp": 28.4, "hrResid": -2.0, "hrVsSim": -1.3, "score": 0.96}, {"dt": "2025-12-19 07:59:12", "date": "2025-12-19", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.01, "hr": 146.0, "maxhr": 164.0, "cad": 149.0, "pace": 414, "paceStr": "6:54", "temp": 29.0, "asc": null, "te": 3.4, "ef": 0.993, "rPace": 403.8, "rHR": 154.2, "rEF": 0.96, "rCad": 159.4, "rTemp": 28.2, "hrResid": -9.1, "hrVsSim": -9.5, "score": 3.88}, {"dt": "2025-12-22 18:28:31", "date": "2025-12-22", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.53, "hr": 148.0, "maxhr": 168.0, "cad": 147.0, "pace": 417, "paceStr": "6:57", "temp": 31.0, "asc": null, "te": 3.5, "ef": 0.972, "rPace": 407.6, "rHR": 151.8, "rEF": 0.97, "rCad": 155.6, "rTemp": 29.0, "hrResid": -6.9, "hrVsSim": -7.8, "score": 3.77}, {"dt": "2025-12-25 09:54:39", "date": "2025-12-25", "title": "Kowloon Running", "type": "Running", "dist": 8.02, "hr": 151.0, "maxhr": 168.0, "cad": 160.0, "pace": 415, "paceStr": "6:55", "temp": 26.0, "asc": 34.0, "te": 3.8, "ef": 0.957, "rPace": 409.2, "rHR": 150.4, "rEF": 0.98, "rCad": 156.2, "rTemp": 28.8, "hrResid": -4.0, "hrVsSim": -5.4, "score": 1.24}, {"dt": "2025-12-31 15:13:13", "date": "2025-12-31", "title": "Kowloon Running", "type": "Running", "dist": 6.04, "hr": 160.0, "maxhr": 177.0, "cad": 162.0, "pace": 416, "paceStr": "6:56", "temp": 27.0, "asc": 13.0, "te": 3.8, "ef": 0.901, "rPace": 411.2, "rHR": 151.8, "rEF": 0.96, "rCad": 155.4, "rTemp": 28.8, "hrResid": 5.0, "hrVsSim": 4.6, "score": 1.15}, {"dt": "2026-01-02 18:40:13", "date": "2026-01-02", "title": "Kowloon Running", "type": "Running", "dist": 4.2, "hr": 160.0, "maxhr": 176.0, "cad": 151.0, "pace": 428, "paceStr": "7:08", "temp": 23.0, "asc": 17.0, "te": 3.3, "ef": 0.876, "rPace": 418.0, "rHR": 153.0, "rEF": 0.94, "rCad": 153.8, "rTemp": 27.2, "hrResid": 5.6, "hrVsSim": 4.3, "score": 2.68}, {"dt": "2026-01-04 09:24:56", "date": "2026-01-04", "title": "Kowloon Running", "type": "Running", "dist": 10.1, "hr": 170.0, "maxhr": 186.0, "cad": 162.0, "pace": 403, "paceStr": "6:43", "temp": 27.0, "asc": 45.0, "te": 5.0, "ef": 0.876, "rPace": 415.8, "rHR": 157.8, "rEF": 0.92, "rCad": 156.4, "rTemp": 26.8, "hrResid": 14.4, "hrVsSim": 3.5, "score": 3.41}, {"dt": "2026-01-07 12:18:31", "date": "2026-01-07", "title": "Kowloon Running", "type": "Running", "dist": 6.21, "hr": 163.0, "maxhr": 179.0, "cad": 164.0, "pace": 399, "paceStr": "6:39", "temp": 24.0, "asc": 31.0, "te": 4.2, "ef": 0.923, "rPace": 412.2, "rHR": 160.8, "rEF": 0.91, "rCad": 159.8, "rTemp": 25.4, "hrResid": 7.2, "hrVsSim": 7.9, "score": 1.72}, {"dt": "2026-01-09 07:20:29", "date": "2026-01-09", "title": "Kowloon Running", "type": "Running", "dist": 5.11, "hr": 153.0, "maxhr": 173.0, "cad": 169.0, "pace": 413, "paceStr": "6:53", "temp": 21.0, "asc": 11.0, "te": 3.5, "ef": 0.95, "rPace": 411.8, "rHR": 161.2, "rEF": 0.91, "rCad": 161.6, "rTemp": 24.4, "hrResid": -2.1, "hrVsSim": -2.6, "score": 0.53}, {"dt": "2026-01-12 12:22:28", "date": "2026-01-12", "title": "Kowloon Running", "type": "Running", "dist": 6.1, "hr": 162.0, "maxhr": 184.0, "cad": 167.0, "pace": 394, "paceStr": "6:34", "temp": 27.0, "asc": 25.0, "te": 4.1, "ef": 0.94, "rPace": 407.4, "rHR": 161.6, "rEF": 0.91, "rCad": 162.6, "rTemp": 24.4, "hrResid": 6.0, "hrVsSim": 6.9, "score": 1.45}, {"dt": "2026-01-14 12:26:56", "date": "2026-01-14", "title": "Kowloon Running", "type": "Running", "dist": 6.04, "hr": 164.0, "maxhr": 179.0, "cad": 166.0, "pace": 400, "paceStr": "6:40", "temp": 33.0, "asc": 34.0, "te": 4.0, "ef": 0.915, "rPace": 401.8, "rHR": 162.4, "rEF": 0.92, "rCad": 165.6, "rTemp": 26.4, "hrResid": 8.2, "hrVsSim": 8.6, "score": 2.45}, {"dt": "2026-01-18 06:51:55", "date": "2026-01-18", "title": "SCB Marathon 10k", "type": "Running", "dist": 10.13, "hr": 175.0, "maxhr": 191.0, "cad": 163.0, "pace": 397, "paceStr": "6:37", "temp": 28.0, "asc": 73.0, "te": 5.0, "ef": 0.864, "rPace": 400.6, "rHR": 163.4, "rEF": 0.92, "rCad": 165.8, "rTemp": 26.6, "hrResid": 19.1, "hrVsSim": 11.0, "score": 4.55}, {"dt": "2026-01-21 12:11:52", "date": "2026-01-21", "title": "Kowloon Running", "type": "Running", "dist": 6.28, "hr": 161.0, "maxhr": 175.0, "cad": 168.0, "pace": 384, "paceStr": "6:24", "temp": 24.0, "asc": 25.0, "te": 4.0, "ef": 0.97, "rPace": 397.6, "rHR": 163.0, "rEF": 0.93, "rCad": 166.6, "rTemp": 26.6, "hrResid": 4.5, "hrVsSim": 5.8, "score": 1.13}, {"dt": "2026-01-22 19:22:05", "date": "2026-01-22", "title": "Kowloon Running", "type": "Running", "dist": 5.02, "hr": 153.0, "maxhr": 167.0, "cad": 165.0, "pace": 418, "paceStr": "6:58", "temp": 23.0, "asc": 18.0, "te": 3.4, "ef": 0.938, "rPace": 398.6, "rHR": 163.0, "rEF": 0.93, "rCad": 165.8, "rTemp": 27.0, "hrResid": -1.9, "hrVsSim": -2.1, "score": 0.49}, {"dt": "2026-01-26 12:11:06", "date": "2026-01-26", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.62, "hr": 157.0, "maxhr": 174.0, "cad": 155.0, "pace": 388, "paceStr": "6:28", "temp": 28.0, "asc": null, "te": 3.5, "ef": 0.985, "rPace": 397.4, "rHR": 162.0, "rEF": 0.93, "rCad": 163.4, "rTemp": 27.2, "hrResid": 0.7, "hrVsSim": 1.6, "score": 1.13}, {"dt": "2026-01-28 12:08:14", "date": "2026-01-28", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.07, "hr": 151.0, "maxhr": 175.0, "cad": 160.0, "pace": 377, "paceStr": "6:17", "temp": 29.0, "asc": null, "te": 3.3, "ef": 1.054, "rPace": 392.8, "rHR": 159.4, "rEF": 0.96, "rCad": 162.2, "rTemp": 26.4, "hrResid": -5.9, "hrVsSim": -4.4, "score": 1.56}, {"dt": "2026-01-31 09:32:02", "date": "2026-01-31", "title": "Kowloon Running", "type": "Running", "dist": 3.22, "hr": 151.0, "maxhr": 170.0, "cad": 168.0, "pace": 399, "paceStr": "6:39", "temp": 25.0, "asc": 3.0, "te": 3.0, "ef": 0.996, "rPace": 393.2, "rHR": 154.6, "rEF": 0.99, "rCad": 163.2, "rTemp": 25.8, "hrResid": -4.8, "hrVsSim": -1.8, "score": 1.12}, {"dt": "2026-02-02 12:16:51", "date": "2026-02-02", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.11, "hr": 151.0, "maxhr": 178.0, "cad": 162.0, "pace": 365, "paceStr": "6:05", "temp": 27.0, "asc": null, "te": 3.2, "ef": 1.089, "rPace": 389.4, "rHR": 152.6, "rEF": 1.01, "rCad": 162.0, "rTemp": 26.4, "hrResid": -6.4, "hrVsSim": -4.6, "score": 1.38}, {"dt": "2026-02-04 12:14:56", "date": "2026-02-04", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.22, "hr": 159.0, "maxhr": 183.0, "cad": 159.0, "pace": 375, "paceStr": "6:15", "temp": 28.0, "asc": null, "te": 3.6, "ef": 1.006, "rPace": 380.8, "rHR": 153.8, "rEF": 1.03, "rCad": 160.8, "rTemp": 27.4, "hrResid": 2.1, "hrVsSim": 3.6, "score": 0.98}, {"dt": "2026-02-07 18:41:45", "date": "2026-02-07", "title": "Kowloon Running", "type": "Running", "dist": 5.02, "hr": 163.0, "maxhr": 178.0, "cad": 158.0, "pace": 386, "paceStr": "6:26", "temp": 25.0, "asc": 19.0, "te": 3.5, "ef": 0.954, "rPace": 380.4, "rHR": 155.0, "rEF": 1.02, "rCad": 161.4, "rTemp": 26.8, "hrResid": 6.6, "hrVsSim": 8.1, "score": 2.14}, {"dt": "2026-02-09 12:15:15", "date": "2026-02-09", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.24, "hr": 157.0, "maxhr": 179.0, "cad": 160.0, "pace": 370, "paceStr": "6:10", "temp": 29.0, "asc": null, "te": 3.5, "ef": 1.033, "rPace": 379.0, "rHR": 156.2, "rEF": 1.02, "rCad": 161.4, "rTemp": 26.8, "hrResid": -0.2, "hrVsSim": 1.6, "score": 0.39}, {"dt": "2026-02-11 18:26:13", "date": "2026-02-11", "title": "Kowloon Running", "type": "Running", "dist": 6.02, "hr": 163.0, "maxhr": 180.0, "cad": 164.0, "pace": 389, "paceStr": "6:29", "temp": 29.0, "asc": 13.0, "te": 4.0, "ef": 0.946, "rPace": 377.0, "rHR": 158.6, "rEF": 1.01, "rCad": 160.6, "rTemp": 27.6, "hrResid": 6.7, "hrVsSim": 7.8, "score": 1.64}, {"dt": "2026-02-13 07:07:12", "date": "2026-02-13", "title": "Kowloon Running", "type": "Running", "dist": 5.02, "hr": 149.0, "maxhr": 169.0, "cad": 164.0, "pace": 406, "paceStr": "6:46", "temp": 25.0, "asc": 6.0, "te": 3.2, "ef": 0.992, "rPace": 385.2, "rHR": 158.2, "rEF": 0.99, "rCad": 161.0, "rTemp": 27.2, "hrResid": -6.5, "hrVsSim": -6.1, "score": 1.54}, {"dt": "2026-02-16 12:05:44", "date": "2026-02-16", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.39, "hr": 147.0, "maxhr": 171.0, "cad": 159.0, "pace": 378, "paceStr": "6:18", "temp": 29.0, "asc": null, "te": 3.1, "ef": 1.08, "rPace": 385.8, "rHR": 155.8, "rEF": 1.0, "rCad": 161.0, "rTemp": 27.4, "hrResid": -9.8, "hrVsSim": -8.7, "score": 2.62}, {"dt": "2026-02-19 08:55:24", "date": "2026-02-19", "title": "Kowloon Running", "type": "Running", "dist": 7.25, "hr": 156.0, "maxhr": 170.0, "cad": 164.0, "pace": 391, "paceStr": "6:31", "temp": 28.0, "asc": 38.0, "te": 3.9, "ef": 0.984, "rPace": 386.8, "rHR": 154.4, "rEF": 1.01, "rCad": 162.2, "rTemp": 28.0, "hrResid": -0.2, "hrVsSim": 0.2, "score": 0.07}, {"dt": "2026-02-20 21:38:17", "date": "2026-02-20", "title": "Kowloon Running", "type": "Running", "dist": 5.04, "hr": 167.0, "maxhr": 181.0, "cad": 166.0, "pace": 369, "paceStr": "6:09", "temp": 26.0, "asc": 16.0, "te": 3.8, "ef": 0.974, "rPace": 386.6, "rHR": 156.4, "rEF": 1.0, "rCad": 163.4, "rTemp": 27.4, "hrResid": 9.8, "hrVsSim": 11.3, "score": 2.44}, {"dt": "2026-02-23 11:59:15", "date": "2026-02-23", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.45, "hr": 147.0, "maxhr": 174.0, "cad": 161.0, "pace": 362, "paceStr": "6:02", "temp": 30.0, "asc": null, "te": 3.2, "ef": 1.128, "rPace": 381.2, "rHR": 153.2, "rEF": 1.03, "rCad": 162.8, "rTemp": 27.6, "hrResid": -10.6, "hrVsSim": -8.7, "score": 2.49}, {"dt": "2026-02-25 12:15:12", "date": "2026-02-25", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.02, "hr": 153.0, "maxhr": 179.0, "cad": 164.0, "pace": 360, "paceStr": "6:00", "temp": 29.0, "asc": null, "te": 3.5, "ef": 1.089, "rPace": 372.0, "rHR": 154.0, "rEF": 1.05, "rCad": 162.8, "rTemp": 28.4, "hrResid": -4.7, "hrVsSim": -2.4, "score": 0.96}, {"dt": "2026-02-26 18:46:45", "date": "2026-02-26", "title": "Kowloon Running", "type": "Running", "dist": 5.01, "hr": 148.0, "maxhr": 163.0, "cad": 161.0, "pace": 399, "paceStr": "6:39", "temp": 26.0, "asc": 18.0, "te": 3.1, "ef": 1.016, "rPace": 376.2, "rHR": 154.2, "rEF": 1.04, "rCad": 163.2, "rTemp": 27.8, "hrResid": -7.8, "hrVsSim": -7.0, "score": 1.95}, {"dt": "2026-03-01 14:22:57", "date": "2026-03-01", "title": "Hong Kong Running", "type": "Running", "dist": 4.04, "hr": 156.0, "maxhr": 170.0, "cad": 170.0, "pace": 389, "paceStr": "6:29", "temp": 27.0, "asc": 3.0, "te": 3.1, "ef": 0.989, "rPace": 375.8, "rHR": 154.2, "rEF": 1.04, "rCad": 164.4, "rTemp": 27.6, "hrResid": -0.3, "hrVsSim": 0.1, "score": 0.08}, {"dt": "2026-03-02 12:11:54", "date": "2026-03-02", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.22, "hr": 147.0, "maxhr": 159.0, "cad": 169.0, "pace": 357, "paceStr": "5:57", "temp": 30.0, "asc": null, "te": 3.1, "ef": 1.143, "rPace": 373.4, "rHR": 150.2, "rEF": 1.07, "rCad": 165.0, "rTemp": 28.4, "hrResid": -10.8, "hrVsSim": -8.5, "score": 2.4}, {"dt": "2026-03-04 12:22:48", "date": "2026-03-04", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.14, "hr": 151.0, "maxhr": 168.0, "cad": 167.0, "pace": 421, "paceStr": "7:01", "temp": 29.0, "asc": null, "te": 3.4, "ef": 0.944, "rPace": 385.2, "rHR": 151.0, "rEF": 1.04, "rCad": 166.2, "rTemp": 28.2, "hrResid": -3.8, "hrVsSim": -4.6, "score": 0.95}, {"dt": "2026-03-05 19:59:10", "date": "2026-03-05", "title": "Kowloon Running", "type": "Running", "dist": 5.11, "hr": 151.0, "maxhr": 167.0, "cad": 169.0, "pace": 413, "paceStr": "6:53", "temp": 29.0, "asc": 2.0, "te": 3.0, "ef": 0.962, "rPace": 395.8, "rHR": 150.6, "rEF": 1.01, "rCad": 167.2, "rTemp": 28.2, "hrResid": -4.1, "hrVsSim": -4.6, "score": 1.0}, {"dt": "2026-03-09 12:15:15", "date": "2026-03-09", "title": "Kowloon Running", "type": "Running", "dist": 6.06, "hr": 154.0, "maxhr": 173.0, "cad": 170.0, "pace": 396, "paceStr": "6:36", "temp": 33.0, "asc": 17.0, "te": 3.5, "ef": 0.984, "rPace": 395.2, "rHR": 151.8, "rEF": 1.0, "rCad": 169.0, "rTemp": 29.6, "hrResid": -1.9, "hrVsSim": -1.3, "score": 0.91}, {"dt": "2026-03-11 12:08:56", "date": "2026-03-11", "title": "Kowloon Running", "type": "Running", "dist": 6.01, "hr": 153.0, "maxhr": 170.0, "cad": 169.0, "pace": 402, "paceStr": "6:42", "temp": 28.0, "asc": 12.0, "te": 3.3, "ef": 0.976, "rPace": 397.8, "rHR": 151.2, "rEF": 1.0, "rCad": 168.8, "rTemp": 29.8, "hrResid": -2.7, "hrVsSim": -2.5, "score": 0.63}, {"dt": "2026-03-14 17:59:49", "date": "2026-03-14", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.39, "hr": 148.0, "maxhr": 174.0, "cad": 155.0, "pace": 446, "paceStr": "7:26", "temp": 29.0, "asc": null, "te": 3.2, "ef": 0.909, "rPace": 415.6, "rHR": 151.4, "rEF": 0.95, "rCad": 166.0, "rTemp": 29.6, "hrResid": -5.6, "hrVsSim": -7.6, "score": 2.37}, {"dt": "2026-03-18 12:15:35", "date": "2026-03-18", "title": "Run Workout - 4x4", "type": "Treadmill Running", "dist": 5.67, "hr": 149.0, "maxhr": 174.0, "cad": 154.0, "pace": 424, "paceStr": "7:04", "temp": 31.0, "asc": null, "te": 3.2, "ef": 0.95, "rPace": 416.2, "rHR": 151.0, "rEF": 0.96, "rCad": 163.4, "rTemp": 30.0, "hrResid": -5.6, "hrVsSim": -6.5, "score": 2.57}, {"dt": "2026-03-21 08:58:59", "date": "2026-03-21", "title": "Kowloon Running", "type": "Running", "dist": 6.02, "hr": 151.0, "maxhr": 168.0, "cad": 160.0, "pace": 407, "paceStr": "6:47", "temp": 29.0, "asc": 21.0, "te": 3.4, "ef": 0.976, "rPace": 415.0, "rHR": 151.0, "rEF": 0.96, "rCad": 161.6, "rTemp": 30.0, "hrResid": -4.4, "hrVsSim": -4.4, "score": 1.31}, {"dt": "2026-03-23 12:18:51", "date": "2026-03-23", "title": "Kowloon - Run Workout - 4x4", "type": "Running", "dist": 5.68, "hr": 152.0, "maxhr": 179.0, "cad": 145.0, "pace": 424, "paceStr": "7:04", "temp": 33.0, "asc": 8.0, "te": 3.4, "ef": 0.931, "rPace": 420.6, "rHR": 150.6, "rEF": 0.95, "rCad": 156.6, "rTemp": 30.0, "hrResid": -2.6, "hrVsSim": -3.5, "score": 3.39}, {"dt": "2026-03-25 12:19:11", "date": "2026-03-25", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 7.3, "hr": 157.0, "maxhr": 175.0, "cad": 165.0, "pace": 412, "paceStr": "6:52", "temp": 31.0, "asc": null, "te": 4.1, "ef": 0.928, "rPace": 422.6, "rHR": 151.4, "rEF": 0.94, "rCad": 155.8, "rTemp": 30.6, "hrResid": 1.8, "hrVsSim": 1.6, "score": 0.54}, {"dt": "2026-03-28 09:33:00", "date": "2026-03-28", "title": "Hong Kong Running", "type": "Running", "dist": 10.01, "hr": 158.0, "maxhr": 174.0, "cad": 161.0, "pace": 413, "paceStr": "6:53", "temp": 33.0, "asc": 16.0, "te": 3.9, "ef": 0.919, "rPace": 416.0, "rHR": 153.4, "rEF": 0.94, "rCad": 157.0, "rTemp": 31.4, "hrResid": 2.9, "hrVsSim": -14.5, "score": 1.27}, {"dt": "2026-03-31 12:20:23", "date": "2026-03-31", "title": "Run Workout 2 x 8", "type": "Treadmill Running", "dist": 6.13, "hr": 153.0, "maxhr": 179.0, "cad": 152.0, "pace": 422, "paceStr": "7:02", "temp": 31.0, "asc": null, "te": 3.6, "ef": 0.929, "rPace": 415.6, "rHR": 154.2, "rEF": 0.94, "rCad": 156.6, "rTemp": 31.4, "hrResid": -1.7, "hrVsSim": -2.4, "score": 1.9}, {"dt": "2026-04-02 07:22:18", "date": "2026-04-02", "title": "Hanoi Running", "type": "Running", "dist": 5.11, "hr": 159.0, "maxhr": 175.0, "cad": 175.0, "pace": 383, "paceStr": "6:23", "temp": 29.0, "asc": 8.0, "te": 3.7, "ef": 0.985, "rPace": 410.8, "rHR": 155.8, "rEF": 0.94, "rCad": 159.6, "rTemp": 31.4, "hrResid": 2.4, "hrVsSim": 3.5, "score": 0.64}, {"dt": "2026-04-02 21:22:29", "date": "2026-04-02", "title": "Hanoi Running", "type": "Running", "dist": 3.15, "hr": 152.0, "maxhr": 171.0, "cad": 165.0, "pace": 443, "paceStr": "7:23", "temp": 31.0, "asc": 5.0, "te": 2.5, "ef": 0.891, "rPace": 414.6, "rHR": 155.8, "rEF": 0.93, "rCad": 163.6, "rTemp": 31.0, "hrResid": -1.7, "hrVsSim": 0.1, "score": 0.66}, {"dt": "2026-04-05 18:06:27", "date": "2026-04-05", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 3.02, "hr": 142.0, "maxhr": 154.0, "cad": 163.0, "pace": 404, "paceStr": "6:44", "temp": 30.0, "asc": null, "te": 2.6, "ef": 1.046, "rPace": 413.0, "rHR": 152.8, "rEF": 0.95, "rCad": 163.2, "rTemp": 30.8, "hrResid": -13.6, "hrVsSim": -11.9, "score": 3.22}, {"dt": "2026-04-08 12:27:11", "date": "2026-04-08", "title": "Kowloon Running", "type": "Running", "dist": 6.09, "hr": 151.0, "maxhr": 171.0, "cad": 165.0, "pace": 395, "paceStr": "6:35", "temp": 30.0, "asc": 48.0, "te": 3.5, "ef": 1.006, "rPace": 409.4, "rHR": 151.4, "rEF": 0.97, "rCad": 164.0, "rTemp": 30.2, "hrResid": -5.0, "hrVsSim": -4.3, "score": 1.15}, {"dt": "2026-04-11 16:48:56", "date": "2026-04-11", "title": "Kowloon Running", "type": "Running", "dist": 6.09, "hr": 150.0, "maxhr": 174.0, "cad": 166.0, "pace": 444, "paceStr": "7:24", "temp": 33.0, "asc": 21.0, "te": 3.0, "ef": 0.901, "rPace": 413.8, "rHR": 150.8, "rEF": 0.97, "rCad": 166.8, "rTemp": 30.6, "hrResid": -3.7, "hrVsSim": -5.3, "score": 1.5}, {"dt": "2026-04-13 12:21:50", "date": "2026-04-13", "title": "Kowloon Running", "type": "Running", "dist": 6.08, "hr": 160.0, "maxhr": 180.0, "cad": 161.0, "pace": 396, "paceStr": "6:36", "temp": 36.0, "asc": 15.0, "te": 3.7, "ef": 0.947, "rPace": 416.4, "rHR": 151.0, "rEF": 0.96, "rCad": 164.0, "rTemp": 32.0, "hrResid": 4.1, "hrVsSim": 4.8, "score": 2.15}, {"dt": "2026-04-15 18:55:39", "date": "2026-04-15", "title": "Run Workout - 4x4", "type": "Treadmill Running", "dist": 5.68, "hr": 155.0, "maxhr": 183.0, "cad": 151.0, "pace": 424, "paceStr": "7:04", "temp": 30.0, "asc": null, "te": 3.5, "ef": 0.913, "rPace": 412.6, "rHR": 151.6, "rEF": 0.96, "rCad": 161.2, "rTemp": 31.8, "hrResid": 0.4, "hrVsSim": -0.5, "score": 1.54}, {"dt": "2026-04-17 07:18:09", "date": "2026-04-17", "title": "Kowloon Running", "type": "Running", "dist": 6.17, "hr": 158.0, "maxhr": 175.0, "cad": 169.0, "pace": 389, "paceStr": "6:29", "temp": 32.0, "asc": 5.0, "te": 3.6, "ef": 0.976, "rPace": 409.6, "rHR": 154.8, "rEF": 0.95, "rCad": 162.4, "rTemp": 32.2, "hrResid": 1.7, "hrVsSim": 2.7, "score": 0.77}, {"dt": "2026-04-21 07:17:55", "date": "2026-04-21", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 7.18, "hr": 151.0, "maxhr": 171.0, "cad": 167.0, "pace": 418, "paceStr": "6:58", "temp": 30.0, "asc": null, "te": 3.6, "ef": 0.951, "rPace": 414.2, "rHR": 154.8, "rEF": 0.94, "rCad": 162.8, "rTemp": 32.2, "hrResid": -3.9, "hrVsSim": -4.7, "score": 0.97}, {"dt": "2026-04-24 07:21:38", "date": "2026-04-24", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.02, "hr": 153.0, "maxhr": 171.0, "cad": 164.0, "pace": 405, "paceStr": "6:45", "temp": 30.0, "asc": null, "te": 3.6, "ef": 0.968, "rPace": 406.4, "rHR": 155.4, "rEF": 0.95, "rCad": 162.4, "rTemp": 31.6, "hrResid": -2.5, "hrVsSim": -2.4, "score": 0.59}, {"dt": "2026-04-25 09:09:30", "date": "2026-04-25", "title": "Kowloon Running", "type": "Running", "dist": 6.08, "hr": 147.0, "maxhr": 170.0, "cad": 162.0, "pace": 395, "paceStr": "6:35", "temp": 31.0, "asc": 2.0, "te": 3.4, "ef": 1.033, "rPace": 406.2, "rHR": 152.8, "rEF": 0.97, "rCad": 162.6, "rTemp": 30.6, "hrResid": -9.0, "hrVsSim": -8.3, "score": 2.23}, {"dt": "2026-04-27 12:29:32", "date": "2026-04-27", "title": "Kowloon Running", "type": "Running", "dist": 5.01, "hr": 164.0, "maxhr": 181.0, "cad": 155.0, "pace": 385, "paceStr": "6:25", "temp": 33.0, "asc": 9.0, "te": 3.6, "ef": 0.95, "rPace": 398.4, "rHR": 154.6, "rEF": 0.98, "rCad": 163.4, "rTemp": 31.2, "hrResid": 7.5, "hrVsSim": 9.3, "score": 3.25}, {"dt": "2026-05-01 08:35:00", "date": "2026-05-01", "title": "Kowloon Running", "type": "Running", "dist": 6.51, "hr": 159.0, "maxhr": 179.0, "cad": 169.0, "pace": 372, "paceStr": "6:12", "temp": 34.0, "asc": 3.0, "te": 3.9, "ef": 1.014, "rPace": 395.0, "rHR": 154.8, "rEF": 0.98, "rCad": 163.4, "rTemp": 31.6, "hrResid": 1.9, "hrVsSim": 3.4, "score": 1.23}, {"dt": "2026-05-02 16:38:06", "date": "2026-05-02", "title": "Hong Kong Running", "type": "Running", "dist": 6.02, "hr": 168.0, "maxhr": 185.0, "cad": 174.0, "pace": 368, "paceStr": "6:08", "temp": 31.0, "asc": 9.0, "te": 4.1, "ef": 0.97, "rPace": 385.0, "rHR": 158.2, "rEF": 0.99, "rCad": 164.8, "rTemp": 31.8, "hrResid": 10.7, "hrVsSim": 12.8, "score": 2.79}, {"dt": "2026-05-06 12:23:00", "date": "2026-05-06", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.07, "hr": 153.0, "maxhr": 177.0, "cad": 149.0, "pace": 445, "paceStr": "7:25", "temp": 31.0, "asc": null, "te": 3.6, "ef": 0.881, "rPace": 393.0, "rHR": 158.2, "rEF": 0.97, "rCad": 161.8, "rTemp": 32.0, "hrResid": -0.6, "hrVsSim": -2.3, "score": 2.11}, {"dt": "2026-05-08 07:21:26", "date": "2026-05-08", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.02, "hr": 151.0, "maxhr": 180.0, "cad": 166.0, "pace": 408, "paceStr": "6:48", "temp": 30.0, "asc": null, "te": 3.6, "ef": 0.974, "rPace": 395.6, "rHR": 159.0, "rEF": 0.96, "rCad": 162.6, "rTemp": 31.8, "hrResid": -4.4, "hrVsSim": -4.4, "score": 1.05}, {"dt": "2026-05-13 18:23:56", "date": "2026-05-13", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.03, "hr": 156.0, "maxhr": 173.0, "cad": 165.0, "pace": 407, "paceStr": "6:47", "temp": 30.0, "asc": null, "te": 3.8, "ef": 0.945, "rPace": 400.0, "rHR": 157.4, "rEF": 0.96, "rCad": 164.6, "rTemp": 31.2, "hrResid": 0.6, "hrVsSim": 0.6, "score": 0.13}, {"dt": "2026-05-16 09:32:36", "date": "2026-05-16", "title": "Pudong Running", "type": "Running", "dist": 4.03, "hr": 144.0, "maxhr": 170.0, "cad": 159.0, "pace": 449, "paceStr": "7:29", "temp": 34.0, "asc": 21.0, "te": 2.8, "ef": 0.928, "rPace": 415.4, "rHR": 154.4, "rEF": 0.94, "rCad": 162.6, "rTemp": 31.2, "hrResid": -9.4, "hrVsSim": -11.9, "score": 3.43}, {"dt": "2026-05-20 12:08:14", "date": "2026-05-20", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 7.51, "hr": 158.0, "maxhr": 173.0, "cad": 162.0, "pace": 404, "paceStr": "6:44", "temp": 29.0, "asc": null, "te": 4.2, "ef": 0.94, "rPace": 422.6, "rHR": 152.4, "rEF": 0.93, "rCad": 160.2, "rTemp": 30.8, "hrResid": 2.4, "hrVsSim": 3.2, "score": 0.57}, {"dt": "2026-05-23 09:34:38", "date": "2026-05-23", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.24, "hr": 155.0, "maxhr": 175.0, "cad": 165.0, "pace": 401, "paceStr": "6:41", "temp": 31.0, "asc": null, "te": 3.6, "ef": 0.965, "rPace": 413.8, "rHR": 152.8, "rEF": 0.95, "rCad": 163.4, "rTemp": 30.8, "hrResid": -0.7, "hrVsSim": -0.4, "score": 0.29}, {"dt": "2026-05-27 12:24:06", "date": "2026-05-27", "title": "Kowloon Running", "type": "Running", "dist": 5.07, "hr": 162.0, "maxhr": 180.0, "cad": 158.0, "pace": 416, "paceStr": "6:56", "temp": 38.0, "asc": 4.0, "te": 3.3, "ef": 0.89, "rPace": 415.4, "rHR": 155.0, "rEF": 0.93, "rCad": 161.8, "rTemp": 32.4, "hrResid": 7.0, "hrVsSim": 6.4, "score": 3.52}, {"dt": "2026-05-29 18:56:38", "date": "2026-05-29", "title": "Kowloon Running", "type": "Running", "dist": 6.04, "hr": 166.0, "maxhr": 182.0, "cad": 160.0, "pace": 417, "paceStr": "6:57", "temp": 33.0, "asc": 13.0, "te": 3.7, "ef": 0.867, "rPace": 417.4, "rHR": 157.0, "rEF": 0.92, "rCad": 160.8, "rTemp": 33.0, "hrResid": 11.1, "hrVsSim": 10.7, "score": 3.33}, {"dt": "2026-05-31 17:33:11", "date": "2026-05-31", "title": "Kowloon Running", "type": "Running", "dist": 6.32, "hr": 160.0, "maxhr": 179.0, "cad": 168.0, "pace": 409, "paceStr": "6:49", "temp": 34.0, "asc": 18.0, "te": 3.8, "ef": 0.917, "rPace": 409.4, "rHR": 160.2, "rEF": 0.92, "rCad": 162.6, "rTemp": 33.0, "hrResid": 4.7, "hrVsSim": 4.8, "score": 1.77}, {"dt": "2026-06-03 12:27:44", "date": "2026-06-03", "title": "Kowloon Running", "type": "Running", "dist": 3.01, "hr": 153.0, "maxhr": 176.0, "cad": 159.0, "pace": 406, "paceStr": "6:46", "temp": 37.0, "asc": 6.0, "te": 3.0, "ef": 0.966, "rPace": 409.8, "rHR": 159.2, "rEF": 0.92, "rCad": 162.0, "rTemp": 34.6, "hrResid": -2.5, "hrVsSim": 0.7, "score": 2.18}, {"dt": "2026-06-04 18:18:17", "date": "2026-06-04", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 3.02, "hr": 145.0, "maxhr": 158.0, "cad": 163.0, "pace": 411, "paceStr": "6:51", "temp": 29.0, "asc": null, "te": 2.8, "ef": 1.007, "rPace": 411.8, "rHR": 157.2, "rEF": 0.93, "rCad": 161.6, "rTemp": 34.2, "hrResid": -10.2, "hrVsSim": -8.4, "score": 2.44}, {"dt": "2026-06-08 12:12:09", "date": "2026-06-08", "title": "Kowloon Running", "type": "Running", "dist": 6.04, "hr": 161.0, "maxhr": 181.0, "cad": 163.0, "pace": 398, "paceStr": "6:38", "temp": 33.0, "asc": 24.0, "te": 4.0, "ef": 0.936, "rPace": 408.2, "rHR": 157.0, "rEF": 0.94, "rCad": 162.6, "rTemp": 33.2, "hrResid": 5.1, "hrVsSim": 5.6, "score": 1.72}, {"dt": "2026-06-10 12:13:02", "date": "2026-06-10", "title": "Kowloon Running", "type": "Running", "dist": 6.02, "hr": 160.0, "maxhr": 182.0, "cad": 160.0, "pace": 402, "paceStr": "6:42", "temp": 33.0, "asc": 20.0, "te": 3.8, "ef": 0.933, "rPace": 405.2, "rHR": 155.8, "rEF": 0.95, "rCad": 162.6, "rTemp": 33.2, "hrResid": 4.3, "hrVsSim": 4.7, "score": 1.78}, {"dt": "2026-06-16 12:16:22", "date": "2026-06-16", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.5, "hr": 158.0, "maxhr": 178.0, "cad": 163.0, "pace": 419, "paceStr": "6:59", "temp": 31.0, "asc": null, "te": 4.1, "ef": 0.906, "rPace": 407.2, "rHR": 155.4, "rEF": 0.95, "rCad": 161.6, "rTemp": 32.6, "hrResid": 3.2, "hrVsSim": 2.4, "score": 0.84}, {"dt": "2026-06-17 12:24:14", "date": "2026-06-17", "title": "Kowloon Running", "type": "Running", "dist": 5.32, "hr": 160.0, "maxhr": 181.0, "cad": 158.0, "pace": 398, "paceStr": "6:38", "temp": 34.0, "asc": 21.0, "te": 3.8, "ef": 0.942, "rPace": 405.6, "rHR": 156.8, "rEF": 0.94, "rCad": 161.4, "rTemp": 32.0, "hrResid": 4.1, "hrVsSim": 4.5, "score": 2.18}, {"dt": "2026-06-19 10:50:17", "date": "2026-06-19", "title": "Hong Kong Running", "type": "Running", "dist": 5.01, "hr": 158.0, "maxhr": 174.0, "cad": 155.0, "pace": 460, "paceStr": "7:40", "temp": 35.0, "asc": 12.0, "te": 3.2, "ef": 0.826, "rPace": 415.4, "rHR": 159.4, "rEF": 0.91, "rCad": 159.8, "rTemp": 33.2, "hrResid": 5.1, "hrVsSim": 3.2, "score": 2.78}, {"dt": "2026-06-22 12:22:19", "date": "2026-06-22", "title": "Kowloon Running", "type": "Running", "dist": 5.01, "hr": 157.0, "maxhr": 177.0, "cad": 153.0, "pace": 446, "paceStr": "7:26", "temp": 38.0, "asc": 27.0, "te": 3.3, "ef": 0.857, "rPace": 425.0, "rHR": 158.6, "rEF": 0.89, "rCad": 157.8, "rTemp": 34.2, "hrResid": 3.4, "hrVsSim": 2.2, "score": 3.23}, {"dt": "2026-06-24 12:15:13", "date": "2026-06-24", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 7.02, "hr": 157.0, "maxhr": 177.0, "cad": 156.0, "pace": 411, "paceStr": "6:51", "temp": 31.0, "asc": null, "te": 4.0, "ef": 0.93, "rPace": 426.8, "rHR": 158.0, "rEF": 0.89, "rCad": 157.0, "rTemp": 33.8, "hrResid": 1.8, "hrVsSim": 1.1, "score": 1.32}, {"dt": "2026-06-26 08:19:35", "date": "2026-06-26", "title": "Kowloon Running", "type": "Running", "dist": 3.01, "hr": 159.0, "maxhr": 176.0, "cad": 160.0, "pace": 406, "paceStr": "6:46", "temp": 33.0, "asc": 2.0, "te": 3.1, "ef": 0.929, "rPace": 424.2, "rHR": 158.2, "rEF": 0.9, "rCad": 156.4, "rTemp": 34.2, "hrResid": 3.5, "hrVsSim": 7.6, "score": 1.57}, {"dt": "2026-06-29 12:27:22", "date": "2026-06-29", "title": "Kowloon Running", "type": "Running", "dist": 5.01, "hr": 158.0, "maxhr": 179.0, "cad": 160.0, "pace": 396, "paceStr": "6:36", "temp": 36.0, "asc": 3.0, "te": 3.5, "ef": 0.959, "rPace": 423.8, "rHR": 157.8, "rEF": 0.9, "rCad": 156.8, "rTemp": 34.6, "hrResid": 2.1, "hrVsSim": 3.2, "score": 1.8}, {"dt": "2026-07-01 18:34:03", "date": "2026-07-01", "title": "Kowloon Running", "type": "Running", "dist": 6.01, "hr": 162.0, "maxhr": 179.0, "cad": 156.0, "pace": 405, "paceStr": "6:45", "temp": 34.0, "asc": 5.0, "te": 3.7, "ef": 0.914, "rPace": 412.8, "rHR": 158.6, "rEF": 0.92, "rCad": 157.0, "rTemp": 34.4, "hrResid": 6.5, "hrVsSim": 6.6, "score": 2.99}, {"dt": "2026-07-04 18:04:26", "date": "2026-07-04", "title": "Kowloon Running", "type": "Running", "dist": 5.01, "hr": 164.0, "maxhr": 181.0, "cad": 160.0, "pace": 399, "paceStr": "6:39", "temp": 32.0, "asc": 10.0, "te": 3.7, "ef": 0.917, "rPace": 403.4, "rHR": 160.0, "rEF": 0.93, "rCad": 158.4, "rTemp": 33.2, "hrResid": 8.2, "hrVsSim": 9.3, "score": 2.53}, {"dt": "2026-07-06 12:37:06", "date": "2026-07-06", "title": "Kowloon Running", "type": "Running", "dist": 6.01, "hr": 156.0, "maxhr": 177.0, "cad": 158.0, "pace": 424, "paceStr": "7:04", "temp": 35.0, "asc": 18.0, "te": 3.3, "ef": 0.907, "rPace": 406.0, "rHR": 159.8, "rEF": 0.93, "rCad": 158.8, "rTemp": 34.0, "hrResid": 1.4, "hrVsSim": 0.6, "score": 1.63}, {"dt": "2026-07-08 12:09:05", "date": "2026-07-08", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 6.6, "hr": 150.0, "maxhr": 171.0, "cad": 160.0, "pace": 411, "paceStr": "6:51", "temp": 31.0, "asc": null, "te": 3.4, "ef": 0.973, "rPace": 407.0, "rHR": 158.0, "rEF": 0.93, "rCad": 158.8, "rTemp": 33.6, "hrResid": -5.2, "hrVsSim": -5.8, "score": 1.64}, {"dt": "2026-07-10 07:22:40", "date": "2026-07-10", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 5.53, "hr": 153.0, "maxhr": 171.0, "cad": 165.0, "pace": 391, "paceStr": "6:31", "temp": 30.0, "asc": null, "te": 3.4, "ef": 1.003, "rPace": 406.0, "rHR": 157.0, "rEF": 0.94, "rCad": 159.8, "rTemp": 32.4, "hrResid": -3.2, "hrVsSim": -2.6, "score": 0.71}, {"dt": "2026-07-13 12:23:49", "date": "2026-07-13", "title": "Kowloon Running", "type": "Running", "dist": 5.03, "hr": 153.0, "maxhr": 180.0, "cad": 165.0, "pace": 420, "paceStr": "7:00", "temp": 37.0, "asc": 2.0, "te": 3.3, "ef": 0.934, "rPace": 409.0, "rHR": 155.2, "rEF": 0.95, "rCad": 161.6, "rTemp": 33.0, "hrResid": -1.8, "hrVsSim": -2.2, "score": 1.68}, {"dt": "2026-07-15 18:18:00", "date": "2026-07-15", "title": "Treadmill Running", "type": "Treadmill Running", "dist": 7.01, "hr": 155.0, "maxhr": 178.0, "cad": 161.0, "pace": 386, "paceStr": "6:26", "temp": 31.0, "asc": null, "te": 3.9, "ef": 1.003, "rPace": 406.4, "rHR": 153.4, "rEF": 0.96, "rCad": 161.8, "rTemp": 32.8, "hrResid": -1.4, "hrVsSim": -0.9, "score": 0.53}], "baseline": {"pace": 404.7, "paceStr": "6:44", "hr": 155.5, "cad": 161.9, "temp": 30.2, "ef": 0.957}};
+const runs = DATA.runs, base = DATA.baseline;   // runs are chronological (oldest first)
+const fmtPace = s => Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
+const shortDate = d => d.slice(5); // MM-DD
+
+// VR = currently visible (filtered) runs, chronological
+let VR = runs.slice();
+const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+
+// KPIs recompute from the filtered set
+function renderKPIs(vr){
+  const el=document.getElementById('kpis');
+  if(!vr.length){el.innerHTML='<div class="kpi"><div class="v">0</div><div class="l">No runs match</div></div>';return;}
+  const td=vr.reduce((a,r)=>a+r.dist,0);
+  const ap=mean(vr.map(r=>r.pace)), ah=mean(vr.map(r=>r.hr)), ac=mean(vr.map(r=>r.cad));
+  const hot=vr.reduce((a,r)=>r.temp>a.temp?r:a), lon=vr.reduce((a,r)=>r.dist>a.dist?r:a);
+  const pmin=Math.min(...vr.map(r=>r.pace)), pmax=Math.max(...vr.map(r=>r.pace));
+  const kpis=[
+    {v:vr.length,l:'Total runs',x:`${vr.filter(r=>r.type==='Running').length} out / ${vr.filter(r=>r.type!=='Running').length} tm`},
+    {v:td.toFixed(0)+' km',l:'Total distance',x:(td/vr.length).toFixed(1)+' km avg'},
+    {v:fmtPace(ap)+'/km',l:'Avg pace',x:'range '+fmtPace(pmin)+'–'+fmtPace(pmax)},
+    {v:Math.round(ah)+' bpm',l:'Avg HR',x:'cad '+Math.round(ac)+' spm'},
+    {v:hot.temp+'°C',l:'Hottest run',x:hot.date},
+    {v:lon.dist.toFixed(1)+' km',l:'Longest run',x:lon.date},
+  ];
+  el.innerHTML=kpis.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div><div class="x">${k.x}</div></div>`).join('');
+}
+document.getElementById('sub').textContent=`${runs.length} runs · ${runs.filter(r=>r.type==='Running').length} outdoor / ${runs.filter(r=>r.type!=='Running').length} treadmill · Oct 2, 2025 – Jul 15, 2026`;
+
+// rolling average helper (over the visible set)
+function roll(vals,w){const o=[];for(let i=0;i<vals.length;i++){const s=vals.slice(Math.max(0,i-w+1),i+1);o.push(s.reduce((a,b)=>a+b,0)/s.length);}return o;}
+
+function zoneColor(hr){if(hr<150)return '#4d9dff';if(hr<=157)return '#4dd0a7';if(hr<=163)return '#f5a623';return '#ff5d5d';}
+const tMin=21,tMax=38, rad=t=>5+(t-tMin)/(tMax-tMin)*15;
+
+// crosshair
+const crosshair={id:'crosshair',afterDraw(ch){const a=ch._active;if(!a||!a.length)return;const{ctx,chartArea:ca}=ch;const e=a[0].element;ctx.save();ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(e.x,ca.top);ctx.lineTo(e.x,ca.bottom);ctx.moveTo(ca.left,e.y);ctx.lineTo(ca.right,e.y);ctx.stroke();ctx.restore();}};
+
+const tt=document.getElementById('tt'), wrapEl=document.getElementById('wrapChart');
+let chart=null, hoveredIdx=-1, view='bubble';
+
+function tipHTML(r){return `<div class="tth">${r.title}</div>
+  <div class="ttd">${r.dt.replace('T',' ')} · ${r.type==='Running'?'Outdoor':'Treadmill'}</div>
+  <div class="r"><span class="k">Distance</span><span>${r.dist.toFixed(2)} km</span></div>
+  <div class="r"><span class="k">Pace</span><span>${r.paceStr}/km</span></div>
+  <div class="r"><span class="k">Avg HR</span><span style="color:${zoneColor(r.hr)}">${r.hr} bpm</span></div>
+  <div class="r"><span class="k">Cadence</span><span>${r.cad} spm</span></div>
+  <div class="r"><span class="k">Temp</span><span>${r.temp}°C</span></div>
+  <div class="r"><span class="k">Efficiency</span><span>${r.ef}</span></div>`;}
+
+function placeTip(px,py){let left=px+16,top=py-10;if(left+190>wrapEl.clientWidth)left=px-190;if(top<0)top=6;tt.style.left=left+'px';tt.style.top=top+'px';tt.style.opacity=1;}
+function hideTip(){tt.style.opacity=0;if(hoveredIdx!==-1){hoveredIdx=-1;if(view==='bubble')chart.update('none');}}
+wrapEl.addEventListener('mouseleave',hideTip);
+
+function updateSide(r){
+  document.getElementById('sTitle').textContent=r.title;
+  document.getElementById('sDate').textContent=r.dt.replace('T',' ')+' · '+(r.type==='Running'?'Outdoor':'Treadmill');
+  const sgn=v=>(v>0?'+':'')+v;
+  document.getElementById('sRows').innerHTML=`
+    <div class="prow"><span class="k">Distance</span><span class="v">${r.dist.toFixed(2)} km</span></div>
+    <div class="prow"><span class="k">Pace</span><span class="v">${r.paceStr} <span style="color:var(--muted)">(${sgn(Math.round(r.pace-base.pace))}s)</span></span></div>
+    <div class="prow"><span class="k">Avg HR</span><span class="v" style="color:${zoneColor(r.hr)}">${r.hr} <span style="color:var(--muted)">(${sgn(Math.round(r.hr-base.hr))})</span></span></div>
+    <div class="prow"><span class="k">Max HR</span><span class="v">${r.maxhr}</span></div>
+    <div class="prow"><span class="k">Cadence</span><span class="v">${r.cad} spm</span></div>
+    <div class="prow"><span class="k">Temp</span><span class="v">${r.temp}°C</span></div>
+    <div class="prow"><span class="k">Elevation</span><span class="v">${r.asc!=null?r.asc+' m ↑':'— (treadmill)'}</span></div>
+    <div class="prow"><span class="k">Efficiency</span><span class="v">${r.ef} <span style="color:var(--muted)">(avg ${base.ef})</span></span></div>
+    <div class="prow"><span class="k">HR vs pace</span><span class="v" style="color:${r.hrResid>6?'#ff5d5d':r.hrResid<-6?'#4d9dff':'var(--txt)'}">${sgn(r.hrResid)} bpm</span></div>`;
+  let b='';
+  if(r.hrResid>6)b='<span class="badge" style="background:#3a1e1e;color:#ff8f8f">High effort for this pace</span>';
+  else if(r.temp>=37)b='<span class="badge" style="background:#3a2a12;color:#f5c26b">Extreme heat run</span>';
+  else if(r.hrResid<-6)b='<span class="badge" style="background:#12263a;color:#7fbaff">Efficient / cool run</span>';
+  else b='<span class="badge" style="background:#1c2330;color:#8b96a8">Within your normal range</span>';
+  document.getElementById('sBadge').innerHTML=b;
+}
+
+const legends={
+  bubble:`<span style="color:var(--muted)">HR zone:</span>
+    <span class="lg"><span class="dot" style="background:#4d9dff"></span>Easy &lt;150</span>
+    <span class="lg"><span class="dot" style="background:#4dd0a7"></span>Aerobic 150–157</span>
+    <span class="lg"><span class="dot" style="background:#f5a623"></span>Threshold 158–163</span>
+    <span class="lg"><span class="dot" style="background:#ff5d5d"></span>Hard 164+</span>
+    <span class="lg" style="margin-left:auto">◦ small=cool ● large=hot</span>`,
+  trend:`<span class="lg"><span class="dot" style="background:#4dd0a7"></span>Pace (5-run avg)</span>
+    <span class="lg"><span class="dot" style="background:#ff5d5d"></span>Avg HR (5-run avg)</span>
+    <span class="lg" style="color:var(--muted)">faint = per-run values</span>`,
+  eff:`<span class="lg"><span class="dot" style="background:#f5a623"></span>Efficiency factor (5-run avg)</span>
+    <span class="lg" style="color:var(--muted)">higher = more speed per heartbeat = fitter/cooler</span>`,
+  load:`<span class="lg"><span class="dot" style="background:#4dd0a7"></span>Weekly distance (km)</span>
+    <span class="lg" style="color:var(--muted)">faint bar = rest / no-run week</span>`
+};
+const descs={
+  bubble:'Each bubble = one run. X distance · Y pace (faster up) · colour HR zone · size temperature. Hover for detail + crosshair.',
+  trend:'Fitness/condition over time. Pace and HR lines with a 5-run rolling average smooth out noise — watch for HR rising while pace holds (drift/heat).',
+  eff:'Aerobic efficiency = speed per heartbeat. A falling line means the same pace is costing more effort (fatigue, heat, or lost fitness); a rising line means improving aerobic condition.',
+  load:'Weekly distance = training load and consistency. Watch for big week-to-week jumps (injury risk) and empty weeks (detraining). Hover any week for its detail.'
+};
+
+function buildBubble(){
+  const pts=VR.map((r,i)=>({x:r.dist,y:r.pace,r:rad(r.temp),bg:zoneColor(r.hr),idx:i}));
+  return new Chart(document.getElementById('c'),{
+    type:'bubble',
+    data:{datasets:[{data:pts,parsing:false,
+      backgroundColor:c=>{const p=pts[c.dataIndex];return hoveredIdx<0||hoveredIdx===p.idx?p.bg+'d9':p.bg+'33';},
+      borderColor:c=>{const p=pts[c.dataIndex];return hoveredIdx===p.idx?'#fff':p.bg;},
+      borderWidth:c=>hoveredIdx===pts[c.dataIndex].idx?2.5:1}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'nearest',intersect:false,axis:'xy'},
+      plugins:{legend:{display:false},tooltip:{enabled:false},
+        zoom:{pan:{enabled:true,mode:'xy'},zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'xy'}}},
+      scales:{x:{title:{display:true,text:'Distance (km)',color:'#8b96a8'},grid:{color:'#232b39'},ticks:{color:'#8b96a8'}},
+        y:{reverse:true,title:{display:true,text:'Pace (min/km · faster ↑)',color:'#8b96a8'},grid:{color:'#232b39'},ticks:{color:'#8b96a8',callback:v=>fmtPace(v)}}},
+      onHover:(e,els)=>{if(els.length){const di=els[0].index,r=VR[di];if(hoveredIdx!==di){hoveredIdx=di;chart.update('none');updateSide(r);}tt.innerHTML=tipHTML(r);const m=chart.getDatasetMeta(0).data[di];placeTip(m.x,m.y);}else hideTip();}},
+    plugins:[crosshair]});
+}
+function timeOpts(yLeft,yRight){
+  return {responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{enabled:false},
+      zoom:{pan:{enabled:true,mode:'x'},zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'}}},
+    scales:Object.assign({x:{ticks:{color:'#8b96a8',maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{color:'#232b39'}}},yLeft,yRight),
+    onHover:(e,els)=>{if(els.length){const di=els[0].index,r=VR[di];if(hoveredIdx!==di){hoveredIdx=di;updateSide(r);}tt.innerHTML=tipHTML(r);const x=els[0].element.x;placeTip(x, e.y-30);}else hideTip();}};
+}
+function buildTrend(){
+  const labels=VR.map(r=>shortDate(r.date));
+  const rP=roll(VR.map(r=>r.pace),5), rH=roll(VR.map(r=>r.hr),5);
+  return new Chart(document.getElementById('c'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Pace',yAxisID:'yP',data:rP,borderColor:'#4dd0a7',backgroundColor:'#4dd0a7',pointRadius:0,borderWidth:2.5,tension:.3},
+      {label:'PaceRaw',yAxisID:'yP',data:VR.map(r=>r.pace),borderColor:'#4dd0a733',pointRadius:2,pointBackgroundColor:'#4dd0a7',showLine:false},
+      {label:'HR',yAxisID:'yH',data:rH,borderColor:'#ff5d5d',backgroundColor:'#ff5d5d',pointRadius:0,borderWidth:2.5,tension:.3},
+      {label:'HRRaw',yAxisID:'yH',data:VR.map(r=>r.hr),borderColor:'#ff5d5d33',pointRadius:2,pointBackgroundColor:'#ff5d5d',showLine:false}
+    ]},
+    options:timeOpts(
+      {yP:{position:'left',reverse:true,title:{display:true,text:'Pace (faster ↑)',color:'#4dd0a7'},grid:{color:'#232b39'},ticks:{color:'#4dd0a7',callback:v=>fmtPace(v)}}},
+      {yH:{position:'right',title:{display:true,text:'Avg HR (bpm)',color:'#ff5d5d'},grid:{drawOnChartArea:false},ticks:{color:'#ff5d5d'}}}
+    ),
+    plugins:[crosshair]});
+}
+function buildEff(){
+  const labels=VR.map(r=>shortDate(r.date));
+  const rE=roll(VR.map(r=>r.ef),5);
+  return new Chart(document.getElementById('c'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'EF',yAxisID:'y',data:rE,borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,.12)',fill:true,pointRadius:0,borderWidth:2.5,tension:.3},
+      {label:'EFraw',yAxisID:'y',data:VR.map(r=>r.ef),borderColor:'#f5a62333',pointRadius:2.5,pointBackgroundColor:c=>zoneColor(VR[c.dataIndex].hr),showLine:false}
+    ]},
+    options:timeOpts(
+      {y:{position:'left',title:{display:true,text:'Efficiency (m/min per bpm)',color:'#f5a623'},grid:{color:'#232b39'},ticks:{color:'#f5a623'}}},{}
+    ),
+    plugins:[crosshair]});
+}
+// ---- Weekly Load ----
+let WK=[];
+function weekKey(dateStr){const d=new Date(dateStr+'T00:00:00Z');const day=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-day);return d.toISOString().slice(0,10);}
+function buildWeeks(vr){
+  const map=new Map();
+  vr.forEach(r=>{const k=weekKey(r.date);if(!map.has(k))map.set(k,[]);map.get(k).push(r);});
+  const keys=[...map.keys()].sort();
+  if(!keys.length)return [];
+  const out=[];let cur=new Date(keys[0]+'T00:00:00Z');const end=new Date(keys[keys.length-1]+'T00:00:00Z');
+  while(cur<=end){const k=cur.toISOString().slice(0,10);const g=map.get(k)||[];
+    out.push({week:k,km:g.reduce((a,r)=>a+r.dist,0),n:g.length,pace:g.length?mean(g.map(r=>r.pace)):0,hr:g.length?mean(g.map(r=>r.hr)):0});
+    cur.setUTCDate(cur.getUTCDate()+7);}
+  return out;
+}
+function weekTip(w,px,py){
+  tt.innerHTML=`<div class="tth">Week of ${w.week}</div>
+    <div class="ttd">${w.n} run${w.n===1?'':'s'}</div>
+    <div class="r"><span class="k">Distance</span><span>${w.km.toFixed(1)} km</span></div>`+
+    (w.n?`<div class="r"><span class="k">Avg pace</span><span>${fmtPace(w.pace)}/km</span></div>
+    <div class="r"><span class="k">Avg HR</span><span>${Math.round(w.hr)} bpm</span></div>`:'<div class="r"><span class="k">Rest week</span><span>—</span></div>');
+  placeTip(px,py);
+}
+function updateSideWeek(w){
+  document.getElementById('sTitle').textContent='Week of '+w.week;
+  document.getElementById('sDate').textContent=w.n+' run'+(w.n===1?'':'s')+(w.n?'':' · rest');
+  document.getElementById('sRows').innerHTML=`
+    <div class="prow"><span class="k">Distance</span><span class="v">${w.km.toFixed(1)} km</span></div>
+    <div class="prow"><span class="k">Runs</span><span class="v">${w.n}</span></div>`+
+    (w.n?`<div class="prow"><span class="k">Avg pace</span><span class="v">${fmtPace(w.pace)}/km</span></div>
+    <div class="prow"><span class="k">Avg HR</span><span class="v">${Math.round(w.hr)} bpm</span></div>`:'');
+  document.getElementById('sBadge').innerHTML='';
+}
+function buildLoad(){
+  WK=buildWeeks(VR);
+  const labels=WK.map(w=>w.week.slice(5));
+  return new Chart(document.getElementById('c'),{
+    type:'bar',
+    data:{labels,datasets:[{data:WK.map(w=>+w.km.toFixed(1)),
+      backgroundColor:WK.map(w=>w.n?'#4dd0a7cc':'#232b39'),
+      hoverBackgroundColor:WK.map(w=>w.n?'#4dd0a7':'#2c3648'),borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{enabled:false},
+        zoom:{pan:{enabled:true,mode:'x'},zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'}}},
+      scales:{x:{ticks:{color:'#8b96a8',maxRotation:0,autoSkip:true,maxTicksLimit:11},grid:{display:false}},
+        y:{beginAtZero:true,title:{display:true,text:'Weekly distance (km)',color:'#4dd0a7'},grid:{color:'#232b39'},ticks:{color:'#8b96a8'}}},
+      onHover:(e,els)=>{if(els.length){const di=els[0].index,w=WK[di];weekTip(w,els[0].element.x,e.y-20);updateSideWeek(w);}else hideTip();}},
+    plugins:[crosshair]});
+}
+
+function render(v){
+  view=v;hoveredIdx=-1;tt.style.opacity=0;
+  if(chart)chart.destroy();
+  chart = v==='bubble'?buildBubble():v==='trend'?buildTrend():v==='eff'?buildEff():buildLoad();
+  document.getElementById('legend').innerHTML=legends[v];
+  document.getElementById('cdesc').textContent=descs[v];
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+  updateKeyInsights(v);
+}
+// Key Insights box changes with the active chart
+function updateKeyInsights(v){
+  const box=document.getElementById('kiBox'); if(!box)return;
+  const d=insightsByView[v];
+  if(!d){ // Weekly Load: no narrative in the insight box
+    box.querySelector('h3').innerHTML='📊 Key insights <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">· pick a data chart</span>';
+    box.querySelector('.stat').innerHTML=`42 wks<small>trained every week — consistency is your strength</small>`;
+    box.querySelector('ul').innerHTML='<li>Weekly Load shows volume & consistency in the bars — hover any week.</li>';
+    return;
+  }
+  box.querySelector('h3').innerHTML=`📊 Key insights <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">· ${d.tag}</span>`;
+  box.querySelector('.stat').innerHTML=`${d.stat}<small>${d.statl}</small>`;
+  box.querySelector('ul').innerHTML=d.items.map(i=>`<li>${i}</li>`).join('');
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>render(t.dataset.v));
+document.getElementById('reset').onclick=()=>{if(chart)chart.resetZoom();};
+
+// ---- Filters (Period + Type) ----
+const fMonth=document.getElementById('fMonth'), fType=document.getElementById('fType');
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monKeys=[...new Set(runs.map(r=>r.date.slice(0,7)))].sort();
+fMonth.innerHTML='<option value="all">All months</option>'+monKeys.map(k=>{const p=k.split('-');return `<option value="${k}">${MON[+p[1]-1]} ${p[0]}</option>`;}).join('');
+function applyFilters(){
+  const m=fMonth.value, t=fType.value;
+  VR=runs.filter(r=>(m==='all'||r.date.slice(0,7)===m)&&(t==='all'||(t==='Running'?r.type==='Running':r.type!=='Running')));
+  document.getElementById('fCount').textContent=(m==='all'&&t==='all')?`all ${runs.length} runs`:`${VR.length} of ${runs.length} runs`;
+  renderKPIs(VR);
+  hoveredIdx=-1;tt.style.opacity=0;
+  if(VR.length){render(view);}else if(chart){chart.destroy();chart=null;document.getElementById('legend').innerHTML='';document.getElementById('cdesc').textContent='No runs match this filter.';}
+}
+fMonth.onchange=applyFilters; fType.onchange=applyFilters;
+document.getElementById('fClear').onclick=()=>{fMonth.value='all';fType.value='all';applyFilters();};
+
+renderKPIs(VR);
+render('bubble');
+
+// ---- Top Performance cards ----
+const findRun=(date,titlePart)=>runs.findIndex(r=>r.date===date&&r.title.includes(titlePart));
+const perfCards=[
+  {medal:'🥇',cat:'Best speed',date:'2026-03-02',key:'Treadmill',big:'5:57/km',meta:'Mar 2 · Treadmill · 5.2 km · HR 147',why:'Your fastest average pace — at only HR 147. Peak leg speed.'},
+  {medal:'🥈',cat:'Best endurance',date:'2026-03-28',key:'Hong Kong',big:'10.0 km',meta:'Mar 28 · 6:53/km · HR 158',why:'Longest well-controlled run; aerobic effort held to the end.'},
+  {medal:'🥉',cat:'Best efficiency',date:'2026-02-23',key:'Treadmill',big:'EF 1.13',meta:'Feb 23 · 6:02/km · HR 147',why:'Most speed per heartbeat — your Feb fitness peak.'},
+  {medal:'🎖️',cat:'Strongest finish',date:'2026-01-18',key:'SCB',big:'TE 5.0',meta:'Jan 18 · SCB 10k · 6:37 · HR 175',why:'Highest training effect; pushed hardest to the line (race).'},
+  {medal:'🎯',cat:'Cadence consistency',date:'2026-03-05',key:'Kowloon',big:'169 spm',meta:'Mar 5 · avg 169 / max 176',why:'Tightest cadence spread (7 spm) — steadiest turnover.'}
+];
+let selCard=-1;
+function spotlight(runIdx,cardEl,ci){
+  if(fMonth.value!=='all'||fType.value!=='all'){fMonth.value='all';fType.value='all';applyFilters();}
+  if(view!=='bubble')render('bubble');
+  const di=VR.indexOf(runs[runIdx]);
+  if(di<0)return;
+  hoveredIdx=di;chart.update('none');updateSide(runs[runIdx]);
+  const m=chart.getDatasetMeta(0).data[di];tt.innerHTML=tipHTML(runs[runIdx]);placeTip(m.x,m.y);
+  document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
+  cardEl.classList.add('sel');selCard=ci;
+}
+document.getElementById('perf').innerHTML=perfCards.map((c,i)=>
+  `<div class="pcard r${i+1}" data-i="${i}"><span class="medal">${c.medal}</span><div class="cat">${c.cat}</div><div class="big">${c.big}</div><div class="meta">${c.meta}</div><div class="why">${c.why}</div></div>`).join('');
+document.querySelectorAll('.pcard').forEach(el=>{
+  const i=+el.dataset.i, ri=findRun(perfCards[i].date,perfCards[i].key);
+  el.onclick=()=>{ if(ri>=0) spotlight(ri,el,i); };
+});
+
+// ---- Analysis: icon + headline stat + insight bullets (style A) ----
+const sections=[
+  {t:'Key insights',ic:'📊',cls:'',stat:'88%',statl:'of runs in the HR grey zone',items:[
+    '100 of 113 runs sit in the HR 145–162 zone.',
+    'Only 2 runs were truly easy, below 145 bpm.',
+    'Efficiency peaked in February (EF 1.14), eroded by June.',
+    'Winter runs were faster at the same heart rate.',
+    'Cadence swings wide (136–175) and dipped in June.'
+  ]},
+  {t:'Outliers (top 5)',ic:'🎯',cls:'',stat:'5',statl:'runs flagged vs your own baseline',items:[
+    '<b style="color:#ff8f8f">Low cadence</b> — Oct 21: 136 spm, labored choppy stride.',
+    '<b style="color:#ff8f8f">HR mismatch</b> — Jan 18 race: HR 175, +19 bpm.',
+    '<b style="color:#f5c26b">High heat</b> — May 27: 38°C pushed HR to 162.',
+    '<b style="color:#f5c26b">Pace drop</b> — May 16: 7:29 on hot, hilly terrain.',
+    '<b style="color:#7fbaff">Low turnover</b> — Dec 19: easy run, shuffly 149 cadence.'
+  ]},
+  {t:'HYROX carryover',ic:'🏋️',cls:'hyrox',stat:'6:20–7:00',statl:'your repeatable run-leg pace band',items:[
+    'Pace band 6:20–7:00 — solid, repeatable HYROX run legs.',
+    'Heat cuts efficiency 15% — expect a real back-half fade.',
+    'Cadence too variable (136–175) — lock 165+ when fatigued.',
+    'HR drifts up at steady pace — mirrors station fatigue.',
+    'Feb treadmill tempo strong; hot short runs are heat-capped.'
+  ]},
+  {t:'Training watch-outs',ic:'⚠️',cls:'warn',stat:'2/113',statl:'genuinely easy recovery runs',items:[
+    '<b style="color:#f5c26b">Intensity</b> — 88% medium-hard; too little easy running.',
+    '<b style="color:#f5c26b">Recovery</b> — very few easy runs to absorb load.',
+    '<b style="color:#ff8f8f">Heat</b> — efficiency eroding in summer; June low (EF 0.93).',
+    '<b style="color:#7fbaff">Form</b> — cadence inconsistent (136–175) when tired.',
+    '<b style="color:#8fe6c8">Volume</b> — stuck at 5–6 km; long-run habit faded.'
+  ]},
+  {t:'Longer-run focus',ic:'🛣️',cls:'',stat:'3',statl:'runs ≥10 km, all before April',items:[
+    'Only 3 runs ever hit 10 km — rebuild the habit.',
+    'Run long efforts by heart rate under 150, slow pace.',
+    'Add distance gradually, roughly +1 km each week.',
+    'Shift long runs to cool mornings; pre-hydrate for heat.'
+  ]},
+  {t:'Endurance focus',ic:'🫀',cls:'',stat:'1.02→0.93',statl:'efficiency, Feb peak to June low',items:[
+    'Build aerobic base — put more running under 145 bpm.',
+    'Protect winter gains; February was your efficiency peak.',
+    'Hold cadence near 165+, where you run most efficiently.',
+    'Polarize training: hard days hard, easy days genuinely easy.',
+    'Frequency is strong (113 runs) — redirect intensity, not volume.'
+  ]}
+];
+document.getElementById('analysis').innerHTML=sections.map(s=>
+  `<div class="abox ${s.cls}"${s.t==='Key insights'?' id="kiBox"':''}><h3>${s.ic} ${s.t}</h3><div class="stat">${s.stat}<small>${s.statl}</small></div><ul>${s.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+
+// Per-chart Key Insights (updates when you switch the hero chart tab)
+const insightsByView={
+  bubble:{tag:'Distance vs Pace',stat:'One gear',statl:'you run the same pace at every distance',items:[
+    'Pace barely changes with distance — you have one gear, not easy/hard ones.',
+    'Bubble size shows heat, not distance, is what actually slows you.',
+    'Nothing bottom-right: you never pair long with truly easy.',
+    'Red dots on short runs = hard effort spent where it least helps.'
+  ]},
+  trend:{tag:'Pace & HR Trend',stat:'Peaked Feb',statl:'fitness has quietly drifted down since',items:[
+    'Your aerobic peak was February; you\'ve been sliding since.',
+    'Same pace now costs more beats — the engine, not the legs, is limiting.',
+    'Rising HR on a flat pace line is heat plus a fading base, not effort.',
+    'The gap widens into summer — a signal to rebuild, not push harder.'
+  ]},
+  eff:{tag:'Aerobic Efficiency',stat:'−10%',statl:'efficiency lost since your February peak',items:[
+    'Your engine is ~10% less efficient than at its February best.',
+    'Heat is the single biggest drain — every hot run costs speed.',
+    'Fitness is melting each summer, not compounding — it\'s not yet banked.',
+    'Cool runs prove a higher ceiling exists; base work makes it stick.'
+  ]}
+};
+updateKeyInsights(view);
+</script>
+</body>
+</html>
