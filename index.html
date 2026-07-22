@@ -168,7 +168,9 @@ function renderKPIs(vr){
   ];
   el.innerHTML=kpis.map(k=>`<div class="kpi"><div class="ktop"><span class="kico">${k.ic}</span><span class="l">${k.l}</span></div><div class="v">${k.v}</div><div class="x">${k.x}</div></div>`).join('');
 }
-document.getElementById('sub').textContent=`${runs.length} runs · ${runs.filter(r=>r.type==='Running').length} outdoor / ${runs.filter(r=>r.type!=='Running').length} treadmill · Oct 2, 2025 – Jul 15, 2026`;
+const _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const _fmtD=ds=>{const p=ds.split('-');return `${_M[+p[1]-1]} ${+p[2]}, ${p[0]}`;};
+document.getElementById('sub').textContent=`${runs.length} runs · ${runs.filter(r=>r.type==='Running').length} outdoor / ${runs.filter(r=>r.type!=='Running').length} treadmill · ${_fmtD(runs[0].date)} – ${_fmtD(runs[runs.length-1].date)}`;
 
 // rolling average helper (over the visible set)
 function roll(vals,w){const o=[];for(let i=0;i<vals.length;i++){const s=vals.slice(Math.max(0,i-w+1),i+1);o.push(s.reduce((a,b)=>a+b,0)/s.length);}return o;}
